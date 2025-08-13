@@ -1,0 +1,1 @@
+/usr/bin/cc  -arch arm64 -dynamiclib -Wl,-headerpad_max_install_names -o libsqlite3.so -install_name @rpath/libsqlite3.so CMakeFiles/sqlite3.dir/sqlite3.c.o

@@ -1,0 +1,3 @@
+/Users/calm/Yandex.Disk.localized/dev/infotecs_practice/sqlite-amalgamation-3260000/build/CMakeFiles/sqlite3.dir
+/Users/calm/Yandex.Disk.localized/dev/infotecs_practice/sqlite-amalgamation-3260000/build/CMakeFiles/edit_cache.dir
+/Users/calm/Yandex.Disk.localized/dev/infotecs_practice/sqlite-amalgamation-3260000/build/CMakeFiles/rebuild_cache.dir
