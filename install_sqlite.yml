@@ -1,0 +1,85 @@
+---
+- name: Сборка SQLite в Docker-контейнере
+  hosts: all
+  become: true
+
+  vars:
+    docker_image_name: sqlite-builder
+    docker_container_name: sqlite-builder
+    dockerfile_dir: /opt/sqlite-docker
+    sqlite_url: https://www.sqlite.org/2018/sqlite-amalgamation-3260000.zip
+
+  tasks:
+    - name: Устанавливаем зависимости (включая Docker)
+      apt:
+        name:
+          - build-essential
+          - cmake
+          - unzip
+          - wget
+        state: present
+        update_cache: true
+
+    - name: Убеждаемся, что Docker работает
+      service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Создаем директорию для Dockerfile
+      file:
+        path: "{{ dockerfile_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Создаем Dockerfile
+      copy:
+        dest: "{{ dockerfile_dir }}/Dockerfile"
+        content: |
+          FROM debian:bullseye-slim
+          RUN apt-get update && apt-get install -y \
+              build-essential \
+              wget \
+              unzip \
+              cmake
+          WORKDIR /build
+          RUN wget https://www.sqlite.org/2018/sqlite-amalgamation-3260000.zip && \
+              unzip sqlite-amalgamation-3260000.zip 
+          WORKDIR /build/sqlite-amalgamation-3260000
+          RUN cat <<EOF > CMakeLists.txt
+                      cmake_minimum_required(VERSION 3.10)
+                      project(sqlite3 C)
+                      set(SQLITE_SOURCES sqlite3.c)
+                      set(SQLITE_HEADERS sqlite3.h)
+                      add_library(sqlite3 SHARED \${SQLITE_SOURCES})
+                      target_include_directories(sqlite3 PUBLIC \${CMAKE_CURRENT_SOURCE_DIR})
+                      set_target_properties(sqlite3 PROPERTIES OUTPUT_NAME "sqlite3" PREFIX "lib" SUFFIX ".so")
+          EOF
+          RUN mkdir build && cd build && \
+              cmake .. && make > build.log 2>&1
+          CMD ["bash"]
+
+    - name: Собираем Docker-образ
+      community.docker.docker_image:
+        name: "{{ docker_image_name }}"
+        build:
+          path: "{{ dockerfile_dir }}"
+
+    - name: Запускаем контейнер
+      community.docker.docker_container:
+        name: "{{ docker_container_name }}"
+        image: "{{ docker_image_name }}"
+        state: started
+        detach: true
+        interactive: true
+        tty: true
+
+    - name: Проверяем наличие библиотеки внутри контейнера
+      community.docker.docker_container_exec:
+        container: "{{ docker_container_name }}"
+        command: ls /build/sqlite-amalgamation-3260000/build/libsqlite3.so
+      register: lib_check
+
+    - name: Выводим результат
+      debug:
+        msg: "Библиотека собрана внутри контейнера: {{ lib_check.stdout }}"
